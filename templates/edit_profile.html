@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Profile - Project TEDDY{% endblock %}
+
+{% block content %}
+<div class="dashboard-page">
+    <div class="container mt-4">
+        <div class="row justify-content-center">
+            <div class="col-md-8 col-lg-6">
+                <div class="card dashboard-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-user-edit me-2"></i>Edit Profile
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="editProfileForm" class="auth-form">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="first_name" class="form-label">First Name</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                        <input type="text" class="form-control" id="first_name" name="first_name" 
+                                               value="{{ user.first_name }}" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="last_name" class="form-label">Last Name</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                        <input type="text" class="form-control" id="last_name" name="last_name" 
+                                               value="{{ user.last_name }}" required>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="birthday" class="form-label">Birthday</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-calendar"></i></span>
+                                    <input type="date" class="form-control" id="birthday" name="birthday" 
+                                           value="{{ user.birthday }}" required>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="country" class="form-label">Country</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-globe"></i></span>
+                                    <select class="form-control" id="country" name="country" required>
+                                        <option value="">Select your country</option>
+                                        <option value="Philippines" {% if user.country == 'Philippines' %}selected{% endif %}>Philippines</option>
+                                        <option value="United States" {% if user.country == 'United States' %}selected{% endif %}>United States</option>
+                                        <option value="Canada" {% if user.country == 'Canada' %}selected{% endif %}>Canada</option>
+                                        <option value="United Kingdom" {% if user.country == 'United Kingdom' %}selected{% endif %}>United Kingdom</option>
+                                        <option value="Australia" {% if user.country == 'Australia' %}selected{% endif %}>Australia</option>
+                                        <option value="Japan" {% if user.country == 'Japan' %}selected{% endif %}>Japan</option>
+                                        <option value="South Korea" {% if user.country == 'South Korea' %}selected{% endif %}>South Korea</option>
+                                        <option value="Singapore" {% if user.country == 'Singapore' %}selected{% endif %}>Singapore</option>
+                                        <option value="Malaysia" {% if user.country == 'Malaysia' %}selected{% endif %}>Malaysia</option>
+                                        <option value="Thailand" {% if user.country == 'Thailand' %}selected{% endif %}>Thailand</option>
+                                        <option value="Other" {% if user.country == 'Other' %}selected{% endif %}>Other</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="contact_number" class="form-label">Contact Number</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-phone"></i></span>
+                                    <input type="tel" class="form-control" id="contact_number" name="contact_number" 
+                                           value="{{ user.contact_number }}" required>
+                                </div>
+                            </div>
+
+                            <div class="alert alert-info mb-3">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>Security Check:</strong> Please enter your current password to confirm these changes.
+                            </div>
+
+                            <div class="mb-4">
+                                <label for="current_password" class="form-label">Current Password</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                    <input type="password" class="form-control" id="current_password" 
+                                           name="current_password" required>
+                                </div>
+                            </div>
+
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary me-md-2">
+                                    <i class="fas fa-times me-2"></i>Cancel
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-2"></i>Save Changes
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const editProfileForm = document.getElementById('editProfileForm');
+    
+    editProfileForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(editProfileForm);
+        
+        // Show loading state
+        const submitBtn = editProfileForm.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving...';
+        submitBtn.disabled = true;
+        
+        fetch('/edit-profile', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(data.message, 'success');
+                setTimeout(() => {
+                    window.location.href = '/dashboard';
+                }, 1500);
+            } else {
+                showNotification(data.message, 'error');
+                // Reset button
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('An error occurred while updating your profile', 'error');
+            // Reset button
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        });
+    });
+});
+
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `popup-notification ${type === 'success' ? 'success' : 'error'}`;
+    notification.innerHTML = `
+        <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'} me-2"></i>
+        ${message}
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Trigger animation
+    setTimeout(() => {
+        notification.classList.add('show');
+    }, 100);
+    
+    // Remove notification after 5 seconds
+    setTimeout(() => {
+        notification.classList.add('hide');
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, 5000);
+}
+</script>
+{% endblock %}

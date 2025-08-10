@@ -1,0 +1,12 @@
+{
+    "secret_key": "your-flask-secret-key-here",
+    "database_path": "teddy.db",
+    "api_key": "your-api-key-here", 
+    "website_url": "your-domain.com",
+    "manager_name": "Your Name",
+    "manager_url": "your-manager-site.com",
+    "turnstile": {
+        "site_key": "your-turnstile-site-key",
+        "secret_key": "your-turnstile-secret-key"
+    }
+}

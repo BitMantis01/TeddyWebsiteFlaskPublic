@@ -1,0 +1,487 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Project TEDDY{% endblock %}
+
+{% block content %}
+<div class="dashboard-page">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg dashboard-navbar">
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center" href="{{ url_for('landing_page') }}">
+                <img src="{{ url_for('static', filename='images/logo.webp') }}" alt="TEDDY Logo" class="logo me-2">
+                <span class="brand-text">Project TEDDY</span>
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="{{ url_for('landing_page') }}">
+                    <i class="fas fa-home me-1"></i>Home
+                </a>
+                <a class="nav-link" href="{{ url_for('logout') }}">
+                    <i class="fas fa-sign-out-alt me-1"></i>Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Alert Container -->
+    <div id="alertContainer" class="position-fixed" style="top: 80px; right: 20px; z-index: 1045; max-width: 400px;"></div>
+
+    <div class="container mt-4">
+        <div class="row">
+            <!-- Profile Section -->
+            <div class="col-lg-6 mb-4">
+                <div class="card dashboard-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-user me-2"></i>Profile Information
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        {% if user %}
+                        <div class="profile-info">
+                            <div class="info-item">
+                                <strong>Email:</strong> {{ user.email }}
+                            </div>
+                            <div class="info-item">
+                                <strong>Name:</strong> {{ user.first_name or 'Not set' }} {{ user.last_name or '' }}
+                            </div>
+                            <div class="info-item">
+                                <strong>Birthday:</strong> {{ user.birthday or 'Not set' }}
+                            </div>
+                            <div class="info-item">
+                                <strong>Country:</strong> {{ user.country or 'Not set' }}
+                            </div>
+                            <div class="info-item">
+                                <strong>Contact:</strong> {{ user.contact_number or 'Not set' }}
+                            </div>
+                        </div>
+                        {% if not user.first_name %}
+                        <div class="mt-3">
+                            <a href="{{ url_for('complete_profile_page') }}" class="btn btn-warning">
+                                <i class="fas fa-edit me-2"></i>Complete Profile
+                            </a>
+                        </div>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- TEDDY Connection Section -->
+            <div class="col-lg-6 mb-4">
+                <div class="card dashboard-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-link me-2"></i>TEDDY Connection
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        {% if not teddy %}
+                        <div class="connect-teddy">
+                            <p class="text-muted">Connect your TEDDY device to start monitoring and configuration.</p>
+                            <form id="pairTeddyForm">
+                                <div class="input-group mb-3">
+                                    <span class="input-group-text"><i class="fas fa-key"></i></span>
+                                    <input type="text" class="form-control" id="teddyCode" placeholder="Enter 6-digit TEDDY code" maxlength="6" pattern="[0-9]{6}" required>
+                                    <button class="btn btn-primary" type="submit">
+                                        <i class="fas fa-link me-1"></i>Pair
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                        {% else %}
+                        <div class="teddy-connected">
+                            <div class="connection-status">
+                                <div class="status-indicator connected">
+                                    <i class="fas fa-check-circle"></i>
+                                    <span>TEDDY Connected</span>
+                                </div>
+                                <div class="teddy-code">Code: {{ teddy.teddy_code }}</div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if teddy %}
+        <div class="row">
+            <!-- Battery Status -->
+            <div class="col-lg-4 mb-4">
+                <div class="card dashboard-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-battery-three-quarters me-2"></i>Battery Status
+                        </h5>
+                    </div>
+                    <div class="card-body text-center">
+                        <div class="battery-display">
+                            <div class="battery-percentage">{{ teddy.battery_level }}%</div>
+                            <div class="battery-bar">
+                                <div class="battery-fill" style="width: {{ teddy.battery_level }}%"></div>
+                            </div>
+                            <small class="text-muted">Last updated: {{ teddy.last_updated or 'Never' }}</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Target User Selection -->
+            <div class="col-lg-8 mb-4">
+                <div class="card dashboard-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-users me-2"></i>TEDDY Configuration
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted mb-3">Select who TEDDY is for to optimize its responses:</p>
+                        <div class="target-user-selection">
+                            <div class="row g-2">
+                                {% set target_users = ['Children', 'Teens', 'Adults', 'Elderly', 'Autistic', 'Anxious', 'Patients'] %}
+                                {% for target in target_users %}
+                                <div class="col-md-3 col-6">
+                                    <button class="btn btn-outline-primary target-btn w-100 {% if teddy.target_user == target %}active{% endif %}" 
+                                            data-target="{{ target }}">
+                                        <i class="fas fa-user me-1"></i>{{ target }}
+                                    </button>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <div class="mt-3">
+                                <small class="text-muted">
+                                    Current setting: <strong id="currentTarget">{{ teddy.target_user or 'Children' }}</strong>
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Account Settings Section -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card dashboard-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-cog me-2"></i>Account Settings
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <h6 class="text-muted mb-2">Profile</h6>
+                                <p class="small text-muted mb-3">Update your personal information</p>
+                                <div class="d-grid">
+                                    <a href="{{ url_for('edit_profile') }}" class="btn btn-outline-primary">
+                                        <i class="fas fa-user-edit me-2"></i>Edit Profile
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <h6 class="text-muted mb-2">Account Management</h6>
+                                <p class="small text-muted mb-3">Manage your account and TEDDY connections</p>
+                                <div class="d-grid gap-2">
+                                    <a href="{{ url_for('logout') }}" class="btn btn-outline-secondary">
+                                        <i class="fas fa-sign-out-alt me-2"></i>Logout
+                                    </a>
+                                    {% if teddy %}
+                                    <button class="btn btn-outline-warning" id="unpairTeddyBtn">
+                                        <i class="fas fa-unlink me-2"></i>Unpair TEDDY
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <h6 class="text-danger mb-2">Danger Zone</h6>
+                                <p class="small text-muted mb-3">Permanently delete your account and all data</p>
+                                <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">
+                                    <i class="fas fa-trash me-2"></i>Delete Account
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Account Modal -->
+    <div class="modal fade" id="deleteAccountModal" tabindex="-1" aria-labelledby="deleteAccountModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="deleteAccountModalLabel">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Delete Account
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger">
+                        <strong>Warning!</strong> This action cannot be undone. All your data will be permanently deleted.
+                    </div>
+                    <p>To confirm account deletion, please enter your password:</p>
+                    <form id="deleteAccountForm">
+                        <div class="mb-3">
+                            <label for="confirmPassword" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="confirmPassword" name="password" required>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="confirmDelete" required>
+                            <label class="form-check-label" for="confirmDelete">
+                                I understand that this action cannot be undone
+                            </label>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="confirmDeleteAccount">
+                        <i class="fas fa-trash me-2"></i>Delete Account
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Pair TEDDY form
+    const pairForm = document.getElementById('pairTeddyForm');
+    if (pairForm) {
+        pairForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const teddyCode = document.getElementById('teddyCode').value;
+            
+            if (!/^\d{6}$/.test(teddyCode)) {
+                alert('Please enter a valid 6-digit code');
+                return;
+            }
+            
+            // Create URLSearchParams for proper form encoding
+            const formData = new URLSearchParams();
+            formData.append('teddy_code', teddyCode);
+            
+            fetch('/pair-teddy', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    const alert = document.createElement('div');
+                    alert.className = 'alert alert-success alert-dismissible fade show shadow-sm';
+                    alert.innerHTML = `
+                        <i class="fas fa-check-circle me-2"></i>${data.message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    `;
+                    
+                    // Insert the alert into the dedicated container
+                    const alertContainer = document.getElementById('alertContainer');
+                    alertContainer.appendChild(alert);
+                    
+                    // Auto-hide after 4 seconds and reload
+                    setTimeout(() => {
+                        if (alert.parentNode) {
+                            alert.remove();
+                        }
+                        location.reload();
+                    }, 2000);
+                } else {
+                    // Show error message
+                    const alert = document.createElement('div');
+                    alert.className = 'alert alert-danger alert-dismissible fade show shadow-sm';
+                    alert.innerHTML = `
+                        <i class="fas fa-exclamation-circle me-2"></i>${data.message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    `;
+                    
+                    // Insert the alert into the dedicated container
+                    const alertContainer = document.getElementById('alertContainer');
+                    alertContainer.appendChild(alert);
+                    
+                    // Auto-hide after 4 seconds
+                    setTimeout(() => {
+                        if (alert.parentNode) {
+                            alert.remove();
+                        }
+                    }, 4000);
+                }
+            })
+            .catch(error => {
+                alert('An error occurred. Please try again.');
+                console.error('Error:', error);
+            });
+        });
+    }
+    
+    // Target user selection
+    const targetButtons = document.querySelectorAll('.target-btn');
+    targetButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const target = this.dataset.target;
+            
+            // Create URLSearchParams for proper form encoding
+            const formData = new URLSearchParams();
+            formData.append('target_user', target);
+            
+            fetch('/update-target-user', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update UI
+                    targetButtons.forEach(btn => btn.classList.remove('active'));
+                    this.classList.add('active');
+                    document.getElementById('currentTarget').textContent = target;
+                    
+                    // Show success message in the dedicated alert container
+                    const alert = document.createElement('div');
+                    alert.className = 'alert alert-success alert-dismissible fade show shadow-sm';
+                    alert.innerHTML = `
+                        <i class="fas fa-check-circle me-2"></i>${data.message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    `;
+                    
+                    // Insert the alert into the dedicated container
+                    const alertContainer = document.getElementById('alertContainer');
+                    alertContainer.appendChild(alert);
+                    
+                    // Auto-hide after 4 seconds
+                    setTimeout(() => {
+                        if (alert.parentNode) {
+                            alert.remove();
+                        }
+                    }, 4000);
+                } else {
+                    alert(data.message);
+                }
+            })
+            .catch(error => {
+                alert('An error occurred. Please try again.');
+                console.error('Error:', error);
+            });
+        });
+    });
+    
+    // Auto-refresh battery status every 30 seconds
+    setInterval(() => {
+        if (document.querySelector('.battery-display')) {
+            location.reload();
+        }
+    }, 30000);
+    
+    // Unpair TEDDY functionality
+    const unpairTeddyBtn = document.getElementById('unpairTeddyBtn');
+    if (unpairTeddyBtn) {
+        unpairTeddyBtn.addEventListener('click', function() {
+            if (confirm('Are you sure you want to unpair your TEDDY device? You can pair it again later.')) {
+                fetch('/unpair-teddy', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Show success message
+                        const alert = document.createElement('div');
+                        alert.className = 'alert alert-success alert-dismissible fade show shadow-sm';
+                        alert.innerHTML = `
+                            <i class="fas fa-check-circle me-2"></i>${data.message}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        `;
+                        
+                        const alertContainer = document.getElementById('alertContainer');
+                        alertContainer.appendChild(alert);
+                        
+                        // Reload page after 2 seconds
+                        setTimeout(() => {
+                            location.reload();
+                        }, 2000);
+                    } else {
+                        // Show error message
+                        const alert = document.createElement('div');
+                        alert.className = 'alert alert-danger alert-dismissible fade show shadow-sm';
+                        alert.innerHTML = `
+                            <i class="fas fa-exclamation-circle me-2"></i>${data.message}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        `;
+                        
+                        const alertContainer = document.getElementById('alertContainer');
+                        alertContainer.appendChild(alert);
+                        
+                        setTimeout(() => {
+                            if (alert.parentNode) {
+                                alert.remove();
+                            }
+                        }, 4000);
+                    }
+                })
+                .catch(error => {
+                    alert('An error occurred. Please try again.');
+                    console.error('Error:', error);
+                });
+            }
+        });
+    }
+    
+    // Delete account functionality
+    const confirmDeleteAccount = document.getElementById('confirmDeleteAccount');
+    if (confirmDeleteAccount) {
+        confirmDeleteAccount.addEventListener('click', function() {
+            const password = document.getElementById('confirmPassword').value;
+            const confirmCheckbox = document.getElementById('confirmDelete').checked;
+            
+            if (!password) {
+                alert('Please enter your password');
+                return;
+            }
+            
+            if (!confirmCheckbox) {
+                alert('Please confirm that you understand this action cannot be undone');
+                return;
+            }
+            
+            const formData = new URLSearchParams();
+            formData.append('password', password);
+            
+            fetch('/delete-account', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message and redirect
+                    alert('Account deleted successfully. You will be redirected to the homepage.');
+                    window.location.href = '/';
+                } else {
+                    alert(data.message);
+                }
+            })
+            .catch(error => {
+                alert('An error occurred. Please try again.');
+                console.error('Error:', error);
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

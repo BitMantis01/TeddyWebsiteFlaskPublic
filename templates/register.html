@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}Register - Project TEDDY{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+    <div class="container">
+        <div class="row justify-content-center min-vh-100 align-items-center">
+            <div class="col-md-6 col-lg-4">
+                <div class="auth-card">
+                    <div class="text-center mb-4">
+                        <img src="{{ url_for('static', filename='images/logo.webp') }}" alt="TEDDY Logo" class="auth-logo mb-3">
+                        <h2 class="auth-title">Join TEDDY</h2>
+                        <p class="auth-subtitle">Create your account to get started</p>
+                    </div>
+
+                    <form action="/auth/register" method="POST" class="auth-form">
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                                <input type="email" class="form-control" id="email" name="email" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                <input type="password" class="form-control" id="password" name="password" required minlength="8">
+                                <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <div class="form-text">
+                                <div class="password-requirements">
+                                    <strong>Password must contain:</strong>
+                                    <ul class="mb-0 mt-1">
+                                        <li>At least 8 characters</li>
+                                        <li>One uppercase letter (A-Z)</li>
+                                        <li>One lowercase letter (a-z)</li>
+                                        <li>One number (0-9)</li>
+                                        <li>One special character (!@#$%^&*)</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <!-- Password strength indicator -->
+                            <div id="passwordStrength" class="password-strength mt-2" style="display: none;">
+                                <div class="password-strength-text"></div>
+                                <div class="password-strength-bar">
+                                    <div class="password-strength-fill"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="confirmPassword" class="form-label">Confirm Password</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                <input type="password" class="form-control" id="confirmPassword" name="confirmPassword" required>
+                                <button class="btn btn-outline-secondary" type="button" id="toggleConfirmPassword">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Turnstile CAPTCHA -->
+                        <div class="mb-3 d-flex justify-content-center">
+                            <div class="cf-turnstile" data-sitekey="{{ config.turnstile.site_key }}"></div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100 mb-3">
+                            <i class="fas fa-user-plus me-2"></i>Create Account
+                        </button>
+
+                        <div class="text-center">
+                            <p class="mb-0">Already have an account? <a href="{{ url_for('login_page') }}" class="auth-link">Sign in</a></p>
+                        </div>
+                    </form>
+
+                    <div class="text-center mt-4">
+                        <a href="{{ url_for('landing_page') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Home
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const togglePassword = document.getElementById('togglePassword');
+    const passwordInput = document.getElementById('password');
+    const toggleConfirmPassword = document.getElementById('toggleConfirmPassword');
+    const confirmPasswordInput = document.getElementById('confirmPassword');
+    const form = document.querySelector('.auth-form');
+    
+    // Toggle password visibility
+    togglePassword.addEventListener('click', function() {
+        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordInput.setAttribute('type', type);
+        
+        const icon = this.querySelector('i');
+        icon.classList.toggle('fa-eye');
+        icon.classList.toggle('fa-eye-slash');
+    });
+    
+    // Toggle confirm password visibility
+    toggleConfirmPassword.addEventListener('click', function() {
+        const type = confirmPasswordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        confirmPasswordInput.setAttribute('type', type);
+        
+        const icon = this.querySelector('i');
+        icon.classList.toggle('fa-eye');
+        icon.classList.toggle('fa-eye-slash');
+    });
+    
+    // Form validation
+    form.addEventListener('submit', function(e) {
+        const password = passwordInput.value;
+        const confirmPassword = confirmPasswordInput.value;
+        
+        if (password !== confirmPassword) {
+            e.preventDefault();
+            alert('Passwords do not match!');
+            return false;
+        }
+        
+        if (password.length < 6) {
+            e.preventDefault();
+            alert('Password must be at least 6 characters long!');
+            return false;
+        }
+    });
+});
+</script>
+{% endblock %}
