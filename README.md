@@ -80,7 +80,7 @@ Before you begin, ensure you have the following installed:
 
 ### 1. **Clone the Repository**
 ```bash
-git clone https://github.com/BitMantis01/TeddyWebsiteFlask.git
+git clone https://github.com/BitMantis01/TeddyWebsiteFlaskPublic.git
 cd TeddyWebsiteFlask
 ```
 
@@ -638,12 +638,12 @@ We welcome contributions to improve the Project TEDDY Dashboard! Here's how you 
 
 | Role | Name |
 |------|------|
-| 👩‍🔬 **Lead Researcher** | Shanealei Salve L. Sta. Maria |
-| 👩‍💻 **Technical Lead** | Khasheica Kleane P. Lacap |
-| 🧠 **AI Specialist** | Felix Andrei M. Camillon |
-| 📊 **Data Analyst** | Matthew Gabriel M. Generoso |
-| 🔧 **Hardware Engineer** | Mark James D. Lazaro |
-| 🎨 **UI/UX Designer** | Alson John D. Milante |
+| 🧠 **Researcher** | Shanealei Salve L. Sta. Maria |
+| 🧠 **Researcher** | Khasheica Kleane P. Lacap |
+| 🧠 **Researcher** | Felix Andrei M. Camillon |
+| 🧠 **Researcher** | Matthew Gabriel M. Generoso |
+| 🧠 **Researcher** | Mark James D. Lazaro |
+| 🧠 **Researcher** | Alson John D. Milante |
 
 ### **👨‍🏫 Academic Supervision**
 - **Research Adviser:** Hazel Jhoy C. Del Mundo
@@ -685,7 +685,7 @@ For new feature suggestions:
 ### **📧 Contact Information**
 
 - **Technical Issues:** Create a GitHub issue
-- **Academic Inquiries:** Contact the research adviser
+- **Academic Inquiries:** Contact the researchers
 - **General Questions:** Reach out to the website manager
 
 ## 📄 License
