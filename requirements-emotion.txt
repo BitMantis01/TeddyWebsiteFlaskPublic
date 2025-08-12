@@ -1,0 +1,17 @@
+# AI Emotion API Requirements
+# These are optional dependencies for the emotion analysis features
+# Install these if you want to use the full emotion analysis capabilities
+
+numpy>=1.21.0
+opencv-python>=4.8.0
+fer>=22.4.0
+faster-whisper>=0.9.0
+torch>=2.0.0
+
+# Alternative lighter versions (for CPU-only deployment):
+# torch-cpu>=2.0.0
+# torchvision-cpu>=0.15.0
+# torchaudio-cpu>=2.0.0
+
+# Note: On Windows, you might need to install PyTorch with CPU-only support:
+# pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu

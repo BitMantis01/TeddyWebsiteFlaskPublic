@@ -88,7 +88,7 @@
                             </div>
 
                             <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                                <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary me-md-2">
+                                <a href="{{ url_for(get_user_dashboard_endpoint(session['user_id'])) if session.get('user_id') else url_for('user_dashboard') }}" class="btn btn-outline-secondary me-md-2">
                                     <i class="fas fa-times me-2"></i>Cancel
                                 </a>
                                 <button type="submit" class="btn btn-primary">

@@ -125,33 +125,82 @@
                     </div>
                 </div>
             </div>
+        </div>
+        {% endif %}
 
-            <!-- Target User Selection -->
-            <div class="col-lg-8 mb-4">
+        <!-- AI Features Section -->
+        <div class="row mt-4">
+            <div class="col-12">
                 <div class="card dashboard-card">
                     <div class="card-header">
                         <h5 class="card-title mb-0">
-                            <i class="fas fa-users me-2"></i>TEDDY Configuration
+                            <i class="fas fa-brain me-2"></i>AI Features
                         </h5>
                     </div>
                     <div class="card-body">
-                        <p class="text-muted mb-3">Select who TEDDY is for to optimize its responses:</p>
-                        <div class="target-user-selection">
-                            <div class="row g-2">
-                                {% set target_users = ['Children', 'Teens', 'Adults', 'Elderly', 'Autistic', 'Anxious', 'Patients'] %}
-                                {% for target in target_users %}
-                                <div class="col-md-3 col-6">
-                                    <button class="btn btn-outline-primary target-btn w-100 {% if teddy.target_user == target %}active{% endif %}" 
-                                            data-target="{{ target }}">
-                                        <i class="fas fa-user me-1"></i>{{ target }}
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <h6 class="text-muted mb-2">Emotion Analysis</h6>
+                                <p class="small text-muted mb-3">Analyze emotions from images, audio, and text using AI</p>
+                                <div class="d-grid">
+                                    <a href="{{ url_for('emotion_analysis') }}" class="btn btn-outline-primary">
+                                        <i class="fas fa-brain me-2"></i>Start Analysis
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <h6 class="text-muted mb-2">API Access</h6>
+                                <p class="small text-muted mb-3">Use the emotion API in your applications</p>
+                                <div class="d-grid">
+                                    <button class="btn btn-outline-secondary" onclick="showApiInfo()">
+                                        <i class="fas fa-code me-2"></i>View API Docs
                                     </button>
                                 </div>
-                                {% endfor %}
                             </div>
-                            <div class="mt-3">
-                                <small class="text-muted">
-                                    Current setting: <strong id="currentTarget">{{ teddy.target_user or 'Children' }}</strong>
-                                </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Section (only visible to admins) -->
+        {% if user and user.is_admin %}
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card dashboard-card border-warning">
+                    <div class="card-header bg-warning bg-opacity-10">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-crown me-2 text-warning"></i>Admin Panel
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <h6 class="text-muted mb-2">User Management</h6>
+                                <p class="small text-muted mb-3">Manage user accounts and permissions</p>
+                                <div class="d-grid">
+                                    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-warning">
+                                        <i class="fas fa-users me-2"></i>Manage Users
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <h6 class="text-muted mb-2">System Statistics</h6>
+                                <p class="small text-muted mb-3">View platform usage and analytics</p>
+                                <div class="d-grid">
+                                    <a href="{{ url_for('admin_stats') }}" class="btn btn-outline-warning">
+                                        <i class="fas fa-chart-line me-2"></i>View Stats
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <h6 class="text-muted mb-2">Admin Tools</h6>
+                                <p class="small text-muted mb-3">Advanced administration features</p>
+                                <div class="d-grid">
+                                    <button class="btn btn-outline-secondary" onclick="showAdminTools()">
+                                        <i class="fas fa-tools me-2"></i>Admin Tools
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -322,60 +371,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Target user selection
-    const targetButtons = document.querySelectorAll('.target-btn');
-    targetButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const target = this.dataset.target;
-            
-            // Create URLSearchParams for proper form encoding
-            const formData = new URLSearchParams();
-            formData.append('target_user', target);
-            
-            fetch('/update-target-user', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Update UI
-                    targetButtons.forEach(btn => btn.classList.remove('active'));
-                    this.classList.add('active');
-                    document.getElementById('currentTarget').textContent = target;
-                    
-                    // Show success message in the dedicated alert container
-                    const alert = document.createElement('div');
-                    alert.className = 'alert alert-success alert-dismissible fade show shadow-sm';
-                    alert.innerHTML = `
-                        <i class="fas fa-check-circle me-2"></i>${data.message}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    `;
-                    
-                    // Insert the alert into the dedicated container
-                    const alertContainer = document.getElementById('alertContainer');
-                    alertContainer.appendChild(alert);
-                    
-                    // Auto-hide after 4 seconds
-                    setTimeout(() => {
-                        if (alert.parentNode) {
-                            alert.remove();
-                        }
-                    }, 4000);
-                } else {
-                    alert(data.message);
-                }
-            })
-            .catch(error => {
-                alert('An error occurred. Please try again.');
-                console.error('Error:', error);
-            });
-        });
-    });
-    
     // Auto-refresh battery status every 30 seconds
     setInterval(() => {
         if (document.querySelector('.battery-display')) {
@@ -482,6 +477,123 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
+    
+    // Show API information
+    function showApiInfo() {
+        const apiKey = '{{ config.api_key }}';
+        const baseUrl = window.location.origin;
+        
+        const apiInfo = `
+            <h6>TEDDY Emotion API Endpoints:</h6>
+            <ul>
+                <li><strong>Health Check:</strong> GET ${baseUrl}/api/emotion/health</li>
+                <li><strong>Image Analysis:</strong> POST ${baseUrl}/api/emotion/analyze/image</li>
+                <li><strong>Audio Analysis:</strong> POST ${baseUrl}/api/emotion/analyze/audio</li>
+                <li><strong>Text Analysis:</strong> POST ${baseUrl}/api/emotion/analyze/text</li>
+            </ul>
+            <h6>Authentication:</h6>
+            <p>Include this header in your requests:</p>
+            <code>X-API-Key: ${apiKey}</code>
+            <p class="mt-3">
+                <a href="${url_for('emotion_analysis')}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-brain me-1"></i>Try Emotion Analysis
+                </a>
+            </p>
+        `;
+        
+        // Create and show modal
+        const modal = document.createElement('div');
+        modal.className = 'modal fade';
+        modal.innerHTML = `
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="fas fa-code me-2"></i>API Documentation
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        ${apiInfo}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        const bootstrapModal = new bootstrap.Modal(modal);
+        bootstrapModal.show();
+        
+        // Remove modal from DOM when hidden
+        modal.addEventListener('hidden.bs.modal', function() {
+            modal.remove();
+        });
+    }
+    
+    // Show admin tools
+    function showAdminTools() {
+        const adminInfo = `
+            <h6>Admin Tools:</h6>
+            <div class="list-group">
+                <a href="{{ url_for('admin_dashboard') }}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-users me-2"></i>User Management
+                </a>
+                <a href="{{ url_for('admin_stats') }}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-chart-line me-2"></i>System Statistics
+                </a>
+                <button class="list-group-item list-group-item-action" onclick="checkSystemHealth()">
+                    <i class="fas fa-heartbeat me-2"></i>System Health Check
+                </button>
+            </div>
+        `;
+        
+        const modal = document.createElement('div');
+        modal.className = 'modal fade';
+        modal.innerHTML = `
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Admin Tools</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        ${adminInfo}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        const bootstrapModal = new bootstrap.Modal(modal);
+        bootstrapModal.show();
+        
+        modal.addEventListener('hidden.bs.modal', function() {
+            modal.remove();
+        });
+    }
+    
+    function checkSystemHealth() {
+        fetch('/api/emotion/health')
+        .then(response => response.json())
+        .then(data => {
+            const status = data.status === 'ok' ? 'Healthy' : 'Issues Detected';
+            const color = data.status === 'ok' ? 'success' : 'danger';
+            alert(`System Status: ${status}\nEmotion API: ${data.status}\nML Libraries: ${data.ml_available ? 'Available' : 'Not Available'}`);
+        })
+        .catch(error => {
+            alert('Failed to check system health: ' + error.message);
+        });
+    }
+    
+    // Make functions globally available
+    window.showApiInfo = showApiInfo;
+    window.showAdminTools = showAdminTools;
 });
 </script>
 {% endblock %}

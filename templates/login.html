@@ -42,9 +42,11 @@
                         </div>
 
                         <!-- Turnstile CAPTCHA -->
+                        {% if config.turnstile.enabled %}
                         <div class="mb-3 d-flex justify-content-center">
                             <div class="cf-turnstile" data-sitekey="{{ config.turnstile.site_key }}"></div>
                         </div>
+                        {% endif %}
 
                         <button type="submit" class="btn btn-primary w-100 mb-3">
                             <i class="fas fa-sign-in-alt me-2"></i>Sign In

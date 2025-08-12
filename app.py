@@ -125,10 +125,16 @@ def validate_csrf_token(token):
 
 def verify_turnstile(token):
     """Verify Turnstile CAPTCHA token"""
+    # Check if Turnstile is enabled in config
+    turnstile_config = config.get('turnstile', {})
+    if not turnstile_config.get('enabled', True):
+        print("Turnstile is disabled in config - skipping verification")
+        return True
+    
     if not token:
         return False
     
-    secret_key = config.get('turnstile', {}).get('secret_key', '')
+    secret_key = turnstile_config.get('secret_key', '')
     
     if not secret_key:
         print("Turnstile secret key not configured")
@@ -153,10 +159,91 @@ def verify_turnstile(token):
         print(f"Turnstile verification error: {e}")
         return False
 
-# Make CSRF token available to all templates
+# Make CSRF token, config, and helper functions available to all templates
 @app.context_processor
 def inject_csrf_token():
-    return dict(csrf_token=generate_csrf_token())
+    return dict(
+        csrf_token=generate_csrf_token(), 
+        config=config,
+        is_admin=is_admin,
+        get_user_dashboard_url=get_user_dashboard_url,
+        get_user_dashboard_endpoint=get_user_dashboard_endpoint
+    )
+
+# Template filters for date formatting
+@app.template_filter('format_date')
+def format_date(date_string, format_type='short'):
+    """Format date strings for display"""
+    if not date_string:
+        return 'Never'
+    
+    try:
+        from datetime import datetime
+        # Parse the date string
+        if isinstance(date_string, str):
+            # Try different formats
+            for fmt in ['%Y-%m-%d %H:%M:%S', '%Y-%m-%d', '%Y-%m-%d %H:%M:%S.%f']:
+                try:
+                    date_obj = datetime.strptime(date_string, fmt)
+                    break
+                except ValueError:
+                    continue
+            else:
+                return date_string  # Return original if can't parse
+        else:
+            date_obj = date_string
+            
+        if format_type == 'short':
+            return date_obj.strftime('%b %d, %Y')
+        elif format_type == 'long':
+            return date_obj.strftime('%B %d, %Y at %I:%M %p')
+        else:
+            return date_obj.strftime(format_type)
+    except:
+        return date_string
+
+@app.template_filter('time_ago')
+def time_ago(date_string):
+    """Format date as time ago (e.g., '2 days ago')"""
+    if not date_string:
+        return 'Never'
+    
+    try:
+        from datetime import datetime
+        if isinstance(date_string, str):
+            # Try different formats
+            for fmt in ['%Y-%m-%d %H:%M:%S', '%Y-%m-%d', '%Y-%m-%d %H:%M:%S.%f']:
+                try:
+                    date_obj = datetime.strptime(date_string, fmt)
+                    break
+                except ValueError:
+                    continue
+            else:
+                return date_string
+        else:
+            date_obj = date_string
+            
+        now = datetime.now()
+        diff = now - date_obj
+        
+        if diff.days > 365:
+            years = diff.days // 365
+            return f"{years} year{'s' if years != 1 else ''} ago"
+        elif diff.days > 30:
+            months = diff.days // 30
+            return f"{months} month{'s' if months != 1 else ''} ago"
+        elif diff.days > 0:
+            return f"{diff.days} day{'s' if diff.days != 1 else ''} ago"
+        elif diff.seconds > 3600:
+            hours = diff.seconds // 3600
+            return f"{hours} hour{'s' if hours != 1 else ''} ago"
+        elif diff.seconds > 60:
+            minutes = diff.seconds // 60
+            return f"{minutes} minute{'s' if minutes != 1 else ''} ago"
+        else:
+            return "Just now"
+    except:
+        return date_string
 
 # Simple rate limiting
 login_attempts = {}
@@ -203,6 +290,7 @@ def load_config():
             "manager_name": "Your Name",
             "manager_url": "your-manager-site.com",
             "turnstile": {
+                "enabled": True,
                 "site_key": "",
                 "secret_key": ""
             }
@@ -213,6 +301,19 @@ def load_config():
 
 config = load_config()
 app.secret_key = config['secret_key']
+
+# Store config in app context for emotion API
+app.config['TEDDY_CONFIG'] = config
+
+# Import and register emotion API blueprint
+try:
+    from emotion_api import emotion_bp
+    app.register_blueprint(emotion_bp)
+    print("✓ Emotion API integrated successfully")
+except ImportError as e:
+    print(f"⚠ Warning: Could not import emotion API: {e}")
+except Exception as e:
+    print(f"⚠ Warning: Error registering emotion API: {e}")
 
 @app.before_request
 def check_remember_token():
@@ -256,9 +357,16 @@ def init_db():
             birthday TEXT,
             country TEXT,
             contact_number TEXT,
+            is_admin INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    
+    # Add is_admin column if it doesn't exist (for existing databases)
+    try:
+        cursor.execute('ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0')
+    except sqlite3.OperationalError:
+        pass  # Column already exists
     
     # Teddy devices table
     cursor.execute('''
@@ -299,6 +407,38 @@ def init_db():
     conn.commit()
     conn.close()
 
+def create_admin_user():
+    """Create initial admin user if none exists"""
+    conn = get_db_connection()
+    
+    # Check if any admin users exist
+    admin_count = conn.execute('SELECT COUNT(*) FROM users WHERE is_admin = 1').fetchone()[0]
+    
+    if admin_count == 0:
+        # Create default admin user
+        admin_email = 'admin@teddy.local'
+        admin_password = '@T3ddy12RDL'  # Change this immediately after first login
+        
+        # Check if this email already exists
+        existing_user = conn.execute('SELECT id FROM users WHERE email = ?', (admin_email,)).fetchone()
+        
+        if existing_user:
+            # Make existing user an admin
+            conn.execute('UPDATE users SET is_admin = 1 WHERE email = ?', (admin_email,))
+            print(f"Made existing user {admin_email} an admin")
+        else:
+            # Create new admin user
+            password_hash = hashlib.sha256(admin_password.encode()).hexdigest()
+            conn.execute('''
+                INSERT INTO users (email, password_hash, first_name, last_name, is_admin)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (admin_email, password_hash, 'Admin', 'User', 1))
+            print(f"Created admin user: {admin_email} with password: {admin_password}")
+            print("Please change the admin password immediately after first login!")
+    
+    conn.commit()
+    conn.close()
+
 def hash_password(password):
     """Hash password with SHA-256"""
     return hashlib.sha256(password.encode()).hexdigest()
@@ -308,6 +448,46 @@ def get_db_connection():
     conn = sqlite3.connect(config['database_path'])
     conn.row_factory = sqlite3.Row
     return conn
+
+def get_user_dashboard_endpoint(user_id):
+    """Get the appropriate dashboard endpoint name for a user based on their role"""
+    if is_admin(user_id):
+        return 'admin_dashboard'
+    else:
+        return 'user_dashboard'
+
+def get_user_dashboard_url(user_id):
+    """Get the appropriate dashboard URL for a user based on their role"""
+    if is_admin(user_id):
+        return url_for('admin_dashboard')
+    else:
+        return url_for('user_dashboard')
+
+def is_admin(user_id):
+    """Check if user is an admin"""
+    if not user_id:
+        return False
+    
+    conn = get_db_connection()
+    user = conn.execute('SELECT is_admin FROM users WHERE id = ?', (user_id,)).fetchone()
+    conn.close()
+    
+    return user and user['is_admin'] == 1
+
+def require_admin(f):
+    """Decorator to require admin access"""
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            flash('Please log in to access this page.', 'error')
+            return redirect(url_for('login_page'))
+        
+        if not is_admin(session['user_id']):
+            flash('Admin access required.', 'error')
+            return redirect(url_for('user_dashboard'))
+        
+        return f(*args, **kwargs)
+    decorated_function.__name__ = f.__name__
+    return decorated_function
 
 def create_remember_token(user_id):
     """Create a remember token for the user"""
@@ -369,7 +549,12 @@ def login_page():
     """Login page"""
     # If user is already logged in, redirect to dashboard
     if 'user_id' in session:
-        return redirect(url_for('dashboard'))
+        try:
+            return redirect(url_for(get_user_dashboard_endpoint(session['user_id'])))
+        except Exception as e:
+            # If there's an issue with the user, clear session and continue to login
+            session.clear()
+            app.logger.error(f"Error redirecting logged in user: {e}")
     return render_template('login.html')
 
 @app.route('/register')
@@ -377,22 +562,54 @@ def register_page():
     """Registration page"""
     # If user is already logged in, redirect to dashboard
     if 'user_id' in session:
-        return redirect(url_for('dashboard'))
+        try:
+            return redirect(url_for(get_user_dashboard_endpoint(session['user_id'])))
+        except Exception as e:
+            # If there's an issue with the user, clear session and continue to registration
+            session.clear()
+            app.logger.error(f"Error redirecting logged in user: {e}")
     return render_template('register.html')
 
 @app.route('/dashboard')
 def dashboard():
-    """Dashboard page - requires login"""
+    """Main dashboard - redirects to appropriate dashboard based on user role"""
     if 'user_id' not in session:
         flash('Please login to access the dashboard.', 'error')
         return redirect(url_for('login_page'))
+    
+    # Redirect to appropriate dashboard based on user role
+    return redirect(get_user_dashboard_url(session['user_id']))
+
+@app.route('/user-dashboard')
+def user_dashboard():
+    """User dashboard page - for regular users only"""
+    if 'user_id' not in session:
+        flash('Please login to access the dashboard.', 'error')
+        return redirect(url_for('login_page'))
+    
+    # Prevent admins from accessing user dashboard
+    if is_admin(session['user_id']):
+        return redirect(url_for('admin_dashboard'))
     
     conn = get_db_connection()
     user = conn.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
     teddy = conn.execute('SELECT * FROM teddy_devices WHERE user_id = ?', (session['user_id'],)).fetchone()
     conn.close()
-    
+
     return render_template('dashboard.html', user=user, teddy=teddy)
+
+@app.route('/emotion-analysis')
+def emotion_analysis():
+    """Emotion Analysis page - requires login"""
+    if 'user_id' not in session:
+        flash('Please login to access emotion analysis.', 'error')
+        return redirect(url_for('login_page'))
+    
+    conn = get_db_connection()
+    user = conn.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+    conn.close()
+    
+    return render_template('emotion_analysis.html', user=user)
 
 @app.route('/auth/login', methods=['POST'])
 def login():
@@ -448,7 +665,7 @@ def login():
         if user:
             session['user_id'] = user['id']
             
-            response = make_response(redirect(url_for('dashboard')))
+            response = make_response(redirect(get_user_dashboard_url(user['id'])))
             
             if remember_me:
                 # Create remember token and set cookie
@@ -588,7 +805,7 @@ def complete_profile():
         conn.close()
         
         flash('Profile completed successfully!', 'success')
-        return redirect(url_for('dashboard'))
+        return redirect(url_for(get_user_dashboard_endpoint(session['user_id'])))
     
     except Exception as e:
         flash('An error occurred while updating your profile. Please try again.', 'error')
@@ -642,43 +859,6 @@ def pair_teddy():
     
     except Exception as e:
         return jsonify({'success': False, 'message': 'An error occurred while pairing the teddy.'})
-
-@app.route('/update-target-user', methods=['POST'])
-def update_target_user():
-    """Update target user for teddy"""
-    if 'user_id' not in session:
-        return jsonify({'success': False, 'message': 'Not logged in'})
-    
-    try:
-        # Get and validate target user
-        target_user = sanitize_input(request.form.get('target_user', ''), 20)
-        valid_targets = ['Children', 'Teens', 'Adults', 'Elderly', 'Autistic', 'Anxious', 'Patients']
-        
-        if target_user not in valid_targets:
-            return jsonify({'success': False, 'message': 'Invalid target user selection'})
-        
-        conn = get_db_connection()
-        
-        # Check if user has a teddy paired first
-        user_teddy = conn.execute('SELECT teddy_code FROM teddy_devices WHERE user_id = ?', 
-                                 (session['user_id'],)).fetchone()
-        
-        if not user_teddy:
-            conn.close()
-            return jsonify({'success': False, 'message': 'No TEDDY device paired. Please pair a device first.'})
-        
-        # Update target user
-        conn.execute('UPDATE teddy_devices SET target_user = ? WHERE user_id = ?', 
-                    (target_user, session['user_id']))
-        conn.commit()
-        conn.close()
-        
-        return jsonify({'success': True, 'message': 'Target user updated successfully!'})
-    
-    except Exception as e:
-        return jsonify({'success': False, 'message': 'An error occurred while updating target user.'})
-        conn.close()
-        return jsonify({'success': False, 'message': f'Database error: {str(e)}'})
 
 @app.route('/logout')
 def logout():
@@ -867,7 +1047,7 @@ def broadcast_teddy():
         return jsonify({'success': False, 'message': 'Invalid teddy code'}), 400
     
     conn = get_db_connection()
-    teddy = conn.execute('SELECT target_user FROM teddy_devices WHERE teddy_code = ? AND user_id IS NOT NULL', 
+    teddy = conn.execute('SELECT teddy_code FROM teddy_devices WHERE teddy_code = ? AND user_id IS NOT NULL', 
                         (teddy_code,)).fetchone()
     conn.close()
     
@@ -877,9 +1057,225 @@ def broadcast_teddy():
     return jsonify({
         'success': True,
         'teddycode': teddy_code,
-        'target_user': teddy['target_user']
+        'status': 'paired'
     })
+
+# Admin routes
+@app.route('/admin')
+@require_admin
+def admin_dashboard():
+    """Admin dashboard for user management"""
+    conn = get_db_connection()
+    
+    # Get all users
+    users = conn.execute('''
+        SELECT u.*, 
+               COUNT(td.id) as teddy_count,
+               MAX(td.last_updated) as last_activity
+        FROM users u
+        LEFT JOIN teddy_devices td ON u.id = td.user_id
+        GROUP BY u.id
+        ORDER BY u.created_at DESC
+    ''').fetchall()
+    
+    # Get current admin user
+    admin_user = conn.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+    
+    # Calculate statistics
+    total_users = len(users)
+    admin_users = len([u for u in users if u['is_admin'] == 1])
+    total_teddy_devices = sum(u['teddy_count'] for u in users)
+    
+    # Get users created this month
+    from datetime import datetime
+    current_month = datetime.now().strftime('%Y-%m')
+    users_this_month = len([u for u in users if u['created_at'] and u['created_at'].startswith(current_month)])
+    
+    stats = {
+        'total_users': total_users,
+        'admin_users': admin_users,
+        'users_this_month': users_this_month,
+        'total_teddy_devices': total_teddy_devices
+    }
+    
+    conn.close()
+    
+    return render_template('admin_dashboard.html', users=users, admin_user=admin_user, stats=stats)
+
+@app.route('/admin/user/<int:user_id>')
+@require_admin
+def admin_user_details(user_id):
+    """View detailed user information"""
+    conn = get_db_connection()
+    
+    user = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+    if not user:
+        flash('User not found.', 'error')
+        return redirect(url_for('admin_dashboard'))
+    
+    # Get user's TEDDY devices
+    devices = conn.execute('SELECT * FROM teddy_devices WHERE user_id = ?', (user_id,)).fetchall()
+    
+    # Get user's logs
+    logs = conn.execute('''
+        SELECT tl.*, td.teddy_code 
+        FROM teddy_logs tl
+        JOIN teddy_devices td ON tl.teddy_code = td.teddy_code
+        WHERE td.user_id = ?
+        ORDER BY tl.timestamp DESC
+        LIMIT 50
+    ''', (user_id,)).fetchall()
+    
+    conn.close()
+    
+    return render_template('admin_user_details.html', user=user, devices=devices, logs=logs)
+
+@app.route('/admin/user/<int:user_id>/toggle-admin', methods=['POST'])
+@require_admin
+def admin_toggle_admin_status(user_id):
+    """Toggle admin status for a user"""
+    if user_id == session['user_id']:
+        flash('You cannot change your own admin status.', 'error')
+        return redirect(url_for('admin_dashboard'))
+    
+    conn = get_db_connection()
+    
+    user = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+    if not user:
+        flash('User not found.', 'error')
+        return redirect(url_for('admin_dashboard'))
+    
+    new_admin_status = 1 if user['is_admin'] == 0 else 0
+    conn.execute('UPDATE users SET is_admin = ? WHERE id = ?', (new_admin_status, user_id))
+    conn.commit()
+    conn.close()
+    
+    action = 'granted' if new_admin_status else 'revoked'
+    flash(f'Admin access {action} for {user["email"]}.', 'success')
+    
+    return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/user/<int:user_id>/delete', methods=['POST'])
+@require_admin
+def admin_delete_user(user_id):
+    """Delete a user account"""
+    if user_id == session['user_id']:
+        flash('You cannot delete your own account.', 'error')
+        return redirect(url_for('admin_dashboard'))
+    
+    conn = get_db_connection()
+    
+    user = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+    if not user:
+        flash('User not found.', 'error')
+        return redirect(url_for('admin_dashboard'))
+    
+    # Delete user's TEDDY devices and logs
+    conn.execute('DELETE FROM teddy_logs WHERE teddy_code IN (SELECT teddy_code FROM teddy_devices WHERE user_id = ?)', (user_id,))
+    conn.execute('DELETE FROM teddy_devices WHERE user_id = ?', (user_id,))
+    conn.execute('DELETE FROM users WHERE id = ?', (user_id,))
+    conn.commit()
+    conn.close()
+    
+    flash(f'User {user["email"]} has been deleted.', 'success')
+    
+    return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/stats')
+@require_admin
+def admin_stats():
+    """Admin statistics page"""
+    conn = get_db_connection()
+    
+    # Get various statistics
+    stats = {}
+    
+    # User statistics
+    stats['total_users'] = conn.execute('SELECT COUNT(*) FROM users').fetchone()[0]
+    stats['admin_users'] = conn.execute('SELECT COUNT(*) FROM users WHERE is_admin = 1').fetchone()[0]
+    stats['users_this_month'] = conn.execute('''
+        SELECT COUNT(*) FROM users 
+        WHERE created_at >= date('now', 'start of month')
+    ''').fetchone()[0]
+    
+    # Device statistics
+    stats['total_devices'] = conn.execute('SELECT COUNT(*) FROM teddy_devices').fetchone()[0]
+    stats['paired_devices'] = conn.execute('SELECT COUNT(*) FROM teddy_devices WHERE user_id IS NOT NULL').fetchone()[0]
+    stats['active_devices'] = conn.execute('''
+        SELECT COUNT(*) FROM teddy_devices 
+        WHERE last_updated >= datetime('now', '-7 days')
+    ''').fetchone()[0]
+    
+    # Recent activity
+    recent_users = conn.execute('''
+        SELECT email, first_name, last_name, created_at 
+        FROM users 
+        ORDER BY created_at DESC 
+        LIMIT 10
+    ''').fetchall()
+    
+    recent_devices = conn.execute('''
+        SELECT td.teddy_code, u.email, td.last_updated
+        FROM teddy_devices td
+        LEFT JOIN users u ON td.user_id = u.id
+        ORDER BY td.last_updated DESC
+        LIMIT 10
+    ''').fetchall()
+    
+    conn.close()
+    
+    return render_template('admin_stats.html', stats=stats, recent_users=recent_users, recent_devices=recent_devices)
+
+@app.route('/admin/user/<int:user_id>/reset-password', methods=['POST'])
+@require_admin
+def admin_reset_password(user_id):
+    """Reset user password"""
+    try:
+        data = request.get_json()
+        new_password = data.get('new_password')
+        
+        if not new_password or len(new_password) < 6:
+            return jsonify({'success': False, 'message': 'Password must be at least 6 characters long'})
+        
+        # Hash the new password
+        import hashlib
+        password_hash = hashlib.sha256(new_password.encode()).hexdigest()
+        
+        conn = get_db_connection()
+        conn.execute('UPDATE users SET password_hash = ? WHERE id = ?', (password_hash, user_id))
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'Password reset successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/admin/device/<teddy_code>/unpair', methods=['POST'])
+@require_admin
+def admin_unpair_device(teddy_code):
+    """Unpair a TEDDY device from user"""
+    try:
+        conn = get_db_connection()
+        
+        # Check if device exists
+        device = conn.execute('SELECT * FROM teddy_devices WHERE teddy_code = ?', (teddy_code,)).fetchone()
+        if not device:
+            conn.close()
+            return jsonify({'success': False, 'message': 'Device not found'})
+        
+        # Delete device logs first
+        conn.execute('DELETE FROM teddy_logs WHERE teddy_code = ?', (teddy_code,))
+        
+        # Remove user association (unpair)
+        conn.execute('UPDATE teddy_devices SET user_id = NULL WHERE teddy_code = ?', (teddy_code,))
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': f'Device {teddy_code} unpaired successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
 
 if __name__ == '__main__':
     init_db()
+    create_admin_user()
     app.run(debug=True, host='0.0.0.0', port=5000)

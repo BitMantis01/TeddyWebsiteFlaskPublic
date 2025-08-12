@@ -1,0 +1,506 @@
+{% extends "base.html" %}
+
+{% block title %}Emotion Analysis - Project TEDDY{% endblock %}
+
+{% block content %}
+<div class="dashboard-page">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg dashboard-navbar">
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center" href="{{ url_for('landing_page') }}">
+                <img src="{{ url_for('static', filename='images/logo.webp') }}" alt="TEDDY Logo" class="logo me-2">
+                <span class="brand-text">Project TEDDY</span>
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="{{ url_for(get_user_dashboard_endpoint(session['user_id'])) if session.get('user_id') else url_for('user_dashboard') }}">
+                    <i class="fas fa-home me-1"></i>Dashboard
+                </a>
+                <a class="nav-link" href="{{ url_for('landing_page') }}">
+                    <i class="fas fa-arrow-left me-1"></i>Home
+                </a>
+                <a class="nav-link" href="{{ url_for('logout') }}">
+                    <i class="fas fa-sign-out-alt me-1"></i>Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Page Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="page-header">
+                    <h1><i class="fas fa-brain me-2"></i>AI Emotion Analysis</h1>
+                    <p class="text-muted">Analyze emotions from images, audio, and text using artificial intelligence</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analysis Types -->
+        <div class="row mb-4">
+            <div class="col-lg-4 mb-4">
+                <div class="card dashboard-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-camera me-2 text-primary"></i>Image Analysis
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted mb-3">Upload a photo to detect facial emotions using computer vision</p>
+                        <div class="mb-3">
+                            <input type="file" class="form-control" id="imageFile" accept="image/*">
+                        </div>
+                        <button class="btn btn-primary w-100" onclick="analyzeImage()">
+                            <i class="fas fa-search me-2"></i>Analyze Image
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4 mb-4">
+                <div class="card dashboard-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-microphone me-2 text-success"></i>Audio Analysis
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted mb-3">Upload an MP3 audio file to analyze speech emotions</p>
+                        <div class="mb-3">
+                            <input type="file" class="form-control" id="audioFile" accept="audio/mp3,audio/mpeg">
+                        </div>
+                        <button class="btn btn-success w-100" onclick="analyzeAudio()">
+                            <i class="fas fa-search me-2"></i>Analyze Audio
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4 mb-4">
+                <div class="card dashboard-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-keyboard me-2 text-info"></i>Text Analysis
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted mb-3">Type or paste text to analyze emotional content</p>
+                        <div class="mb-3">
+                            <textarea class="form-control" id="textInput" rows="3" placeholder="Enter text here..."></textarea>
+                        </div>
+                        <button class="btn btn-info w-100" onclick="analyzeText()">
+                            <i class="fas fa-search me-2"></i>Analyze Text
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Indicator -->
+        <div id="loadingIndicator" class="text-center mb-4" style="display: none;">
+            <div class="card dashboard-card">
+                <div class="card-body">
+                    <div class="spinner-border text-primary mb-3" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <h5>Analyzing emotions...</h5>
+                    <p class="text-muted">Please wait while our AI processes your data</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="resultsSection" style="display: none;">
+            <div class="card dashboard-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>Analysis Results
+                    </h5>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="clearResults()">
+                        <i class="fas fa-refresh me-1"></i>Clear Results
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="resultsContent">
+                        <!-- Results will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card dashboard-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-rocket me-2"></i>Quick Actions
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <h6 class="text-muted mb-2">Try Sample Text</h6>
+                                <p class="small text-muted mb-3">Load a sample text to test the analysis</p>
+                                <button class="btn btn-outline-primary" onclick="loadSampleText()">
+                                    <i class="fas fa-file-text me-2"></i>Load Sample
+                                </button>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <h6 class="text-muted mb-2">API Documentation</h6>
+                                <p class="small text-muted mb-3">View API endpoints and usage examples</p>
+                                <button class="btn btn-outline-secondary" onclick="showApiInfo()">
+                                    <i class="fas fa-code me-2"></i>View API Docs
+                                </button>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <h6 class="text-muted mb-2">Health Check</h6>
+                                <p class="small text-muted mb-3">Check if the emotion API is running</p>
+                                <button class="btn btn-outline-success" onclick="checkApiHealth()">
+                                    <i class="fas fa-heartbeat me-2"></i>Check Health
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const API_KEY = '{{ config.api_key }}';
+
+function showLoading() {
+    document.getElementById('loadingIndicator').style.display = 'block';
+    document.getElementById('resultsSection').style.display = 'none';
+}
+
+function hideLoading() {
+    document.getElementById('loadingIndicator').style.display = 'none';
+}
+
+function showResults(content) {
+    document.getElementById('resultsContent').innerHTML = content;
+    document.getElementById('resultsSection').style.display = 'block';
+}
+
+function clearResults() {
+    document.getElementById('resultsSection').style.display = 'none';
+    document.getElementById('imageFile').value = '';
+    document.getElementById('audioFile').value = '';
+    document.getElementById('textInput').value = '';
+}
+
+function createEmotionBadge(emotion, confidence = null) {
+    const colors = {
+        'happiness': 'success',
+        'sadness': 'primary', 
+        'anger': 'danger',
+        'fear': 'warning',
+        'surprise': 'info',
+        'neutral': 'secondary',
+        'disgust': 'dark',
+        'trust': 'success',
+        'anticipation': 'info',
+        'farewell': 'secondary',
+        'none': 'light'
+    };
+    
+    const color = colors[emotion] || 'secondary';
+    const confText = confidence ? ` (${(confidence * 100).toFixed(1)}%)` : '';
+    return `<span class="badge bg-${color}">${emotion}${confText}</span>`;
+}
+
+function analyzeImage() {
+    const fileInput = document.getElementById('imageFile');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        alert('Please select an image file.');
+        return;
+    }
+    
+    showLoading();
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    fetch('/api/emotion/analyze/image', {
+        method: 'POST',
+        headers: {
+            'X-API-Key': API_KEY
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        
+        if (data.error) {
+            showResults(`<div class="alert alert-danger">Error: ${data.error}</div>`);
+            return;
+        }
+        
+        let html = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Detected Emotion</h6>
+                    <p class="h4">${createEmotionBadge(data.emotion)}</p>
+                    <p><strong>Faces Detected:</strong> ${data.faces}</p>
+                    ${data.mock ? '<p class="text-warning"><i class="fas fa-exclamation-triangle"></i> Mock response (ML libraries not installed)</p>' : ''}
+                </div>
+                <div class="col-md-6">
+                    <h6>Emotion Scores</h6>
+                    <div class="emotion-scores">
+        `;
+        
+        for (const [emotion, score] of Object.entries(data.scores || {})) {
+            const percentage = (score * 100).toFixed(1);
+            html += `
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between">
+                        <span>${emotion}</span>
+                        <span>${percentage}%</span>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar" style="width: ${percentage}%"></div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        html += `
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        showResults(html);
+    })
+    .catch(error => {
+        hideLoading();
+        showResults(`<div class="alert alert-danger">Error: ${error.message}</div>`);
+    });
+}
+
+function analyzeAudio() {
+    const fileInput = document.getElementById('audioFile');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        alert('Please select an MP3 audio file.');
+        return;
+    }
+    
+    showLoading();
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    fetch('/api/emotion/analyze/audio', {
+        method: 'POST',
+        headers: {
+            'X-API-Key': API_KEY
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        
+        if (data.error) {
+            showResults(`<div class="alert alert-danger">Error: ${data.error}</div>`);
+            return;
+        }
+        
+        let html = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Detected Emotion</h6>
+                    <p class="h4">${createEmotionBadge(data.emotion, data.confidence)}</p>
+                    ${data.mock ? '<p class="text-warning"><i class="fas fa-exclamation-triangle"></i> Mock response (ML libraries not installed)</p>' : ''}
+                </div>
+                <div class="col-md-6">
+                    <h6>Transcript</h6>
+                    <p class="border p-3 bg-light">${data.transcript || 'No speech detected'}</p>
+                    <p><strong>Transcription Confidence:</strong> ${(data.transcription_confidence * 100).toFixed(1)}%</p>
+                </div>
+            </div>
+        `;
+        
+        if (data.matches && data.matches.length > 0) {
+            html += `
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h6>Emotion Keywords Found</h6>
+                        <p>
+            `;
+            for (const match of data.matches) {
+                html += `<span class="badge bg-secondary me-1">${match}</span>`;
+            }
+            html += `
+                        </p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        showResults(html);
+    })
+    .catch(error => {
+        hideLoading();
+        showResults(`<div class="alert alert-danger">Error: ${error.message}</div>`);
+    });
+}
+
+function analyzeText() {
+    const textInput = document.getElementById('textInput');
+    const text = textInput.value.trim();
+    
+    if (!text) {
+        alert('Please enter some text to analyze.');
+        return;
+    }
+    
+    showLoading();
+    
+    fetch('/api/emotion/analyze/text', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': API_KEY
+        },
+        body: JSON.stringify({ text: text })
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        
+        if (data.error) {
+            showResults(`<div class="alert alert-danger">Error: ${data.error}</div>`);
+            return;
+        }
+        
+        let html = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Detected Emotion</h6>
+                    <p class="h4">${createEmotionBadge(data.emotion, data.confidence)}</p>
+                </div>
+                <div class="col-md-6">
+                    <h6>Analyzed Text</h6>
+                    <p class="border p-3 bg-light">${data.text}</p>
+                </div>
+            </div>
+        `;
+        
+        if (data.matches && data.matches.length > 0) {
+            html += `
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h6>Emotion Keywords Found</h6>
+                        <p>
+            `;
+            for (const match of data.matches) {
+                html += `<span class="badge bg-secondary me-1">${match}</span>`;
+            }
+            html += `
+                        </p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        if (data.all_candidates && data.all_candidates.length > 1) {
+            html += `
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h6>Other Detected Emotions</h6>
+                        <p>
+            `;
+            for (let i = 1; i < data.all_candidates.length; i++) {
+                html += `<span class="badge bg-light text-dark me-1">${data.all_candidates[i]}</span>`;
+            }
+            html += `
+                        </p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        showResults(html);
+    })
+    .catch(error => {
+        hideLoading();
+        showResults(`<div class="alert alert-danger">Error: ${error.message}</div>`);
+    });
+}
+
+function loadSampleText() {
+    const samples = [
+        "I'm feeling incredibly happy today! The sun is shining and everything seems perfect.",
+        "I'm really worried about tomorrow's presentation. I feel so anxious and nervous.",
+        "This is absolutely disgusting! I can't believe this happened.",
+        "Wow, I never expected this surprise! This is absolutely amazing!",
+        "I'm feeling quite sad and lonely today. I miss my friends.",
+        "I'm so angry about this situation! This is completely unfair!"
+    ];
+    
+    const randomSample = samples[Math.floor(Math.random() * samples.length)];
+    document.getElementById('textInput').value = randomSample;
+}
+
+function showApiInfo() {
+    const apiInfo = `
+        <h6>TEDDY Emotion API Endpoints:</h6>
+        <ul>
+            <li><strong>Health Check:</strong> GET /api/emotion/health</li>
+            <li><strong>Image Analysis:</strong> POST /api/emotion/analyze/image</li>
+            <li><strong>Audio Analysis:</strong> POST /api/emotion/analyze/audio</li>
+            <li><strong>Text Analysis:</strong> POST /api/emotion/analyze/text</li>
+        </ul>
+        <h6>Authentication:</h6>
+        <p>Include this header in your requests:</p>
+        <code>X-API-Key: {{ config.api_key }}</code>
+    `;
+    
+    showResults(apiInfo);
+}
+
+function checkApiHealth() {
+    showLoading();
+    
+    fetch('/api/emotion/health')
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        
+        const statusColor = data.status === 'ok' ? 'success' : 'danger';
+        const mlStatus = data.ml_available ? 'Available' : 'Not Available';
+        const mlColor = data.ml_available ? 'success' : 'warning';
+        
+        const html = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>API Status</h6>
+                    <p><span class="badge bg-${statusColor}">${data.status}</span></p>
+                    <p><strong>Timestamp:</strong> ${data.timestamp}</p>
+                </div>
+                <div class="col-md-6">
+                    <h6>ML Libraries</h6>
+                    <p><span class="badge bg-${mlColor}">${mlStatus}</span></p>
+                    ${!data.ml_available ? '<p class="text-muted small">Install ML dependencies for full functionality</p>' : ''}
+                </div>
+            </div>
+        `;
+        
+        showResults(html);
+    })
+    .catch(error => {
+        hideLoading();
+        showResults(`<div class="alert alert-danger">Error checking API health: ${error.message}</div>`);
+    });
+}
+</script>
+{% endblock %}

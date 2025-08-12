@@ -6,7 +6,14 @@
     "manager_name": "Your Name",
     "manager_url": "your-manager-site.com",
     "turnstile": {
+        "enabled": true,
         "site_key": "your-turnstile-site-key",
         "secret_key": "your-turnstile-secret-key"
+    },
+    "emotion_api": {
+        "enabled": true,
+        "whisper_model": "base",
+        "whisper_device": "cpu",
+        "fer_mtcnn": false
     }
 }

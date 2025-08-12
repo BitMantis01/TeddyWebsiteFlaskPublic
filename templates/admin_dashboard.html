@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - Project TEDDY{% endblock %}
+
+{% block content %}
+<div class="dashboard-page">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg dashboard-navbar">
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center" href="{{ url_for('landing_page') }}">
+                <img src="{{ url_for('static', filename='images/logo.webp') }}" alt="TEDDY Logo" class="logo me-2">
+                <span class="brand-text">Project TEDDY</span>
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="{{ url_for('landing_page') }}">
+                    <i class="fas fa-home me-1"></i>Home
+                </a>
+                <a class="nav-link" href="{{ url_for('admin_stats') }}">
+                    <i class="fas fa-chart-line me-1"></i>Statistics
+                </a>
+                <a class="nav-link" href="{{ url_for('logout') }}">
+                    <i class="fas fa-sign-out-alt me-1"></i>Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Page Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="page-header">
+                    <h1><i class="fas fa-crown me-2 text-warning"></i>Admin Dashboard</h1>
+                    <p class="text-muted">Manage users and system administration</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="row mb-4">
+            <div class="col-md-3 mb-3">
+                <div class="card dashboard-card stats-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-users fa-2x text-primary mb-2"></i>
+                        <h3 class="mb-0">{{ stats.total_users }}</h3>
+                        <small class="text-muted">Total Users</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card dashboard-card stats-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-crown fa-2x text-warning mb-2"></i>
+                        <h3 class="mb-0">{{ stats.admin_users }}</h3>
+                        <small class="text-muted">Admin Users</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card dashboard-card stats-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-robot fa-2x text-success mb-2"></i>
+                        <h3 class="mb-0">{{ stats.total_teddy_devices }}</h3>
+                        <small class="text-muted">TEDDY Devices</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card dashboard-card stats-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-calendar-day fa-2x text-info mb-2"></i>
+                        <h3 class="mb-0">{{ stats.users_this_month }}</h3>
+                        <small class="text-muted">New This Month</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Users Table -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card dashboard-card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-users me-2"></i>User Management
+                        </h5>
+                        <div class="btn-group">
+                            <button class="btn btn-outline-primary btn-sm" onclick="refreshUsers()">
+                                <i class="fas fa-refresh me-1"></i>Refresh
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>User</th>
+                                        <th class="hide-mobile">Email</th>
+                                        <th>Status</th>
+                                        <th class="hide-mobile">TEDDY Devices</th>
+                                        <th class="hide-mobile">Last Activity</th>
+                                        <th class="hide-mobile">Created</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for user in users %}
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="user-avatar me-2">
+                                                    <i class="fas fa-user-circle fa-2x text-secondary"></i>
+                                                </div>
+                                                <div>
+                                                    <strong>{{ user.first_name or 'N/A' }} {{ user.last_name or '' }}</strong>
+                                                    {% if user.is_admin %}
+                                                    <span class="badge bg-warning ms-1">Admin</span>
+                                                    {% endif %}
+                                                    <div class="d-block d-md-none">
+                                                        <small class="text-muted">{{ user.email }}</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="hide-mobile">{{ user.email }}</td>
+                                        <td>
+                                            {% if user.last_activity %}
+                                            <span class="badge bg-success">Active</span>
+                                            {% else %}
+                                            <span class="badge bg-secondary">Inactive</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="hide-mobile">
+                                            <span class="badge bg-primary">{{ user.teddy_count }}</span>
+                                        </td>
+                                        <td class="hide-mobile">
+                                            {% if user.last_activity %}
+                                            {{ user.last_activity|time_ago }}
+                                            {% else %}
+                                            <span class="text-muted">Never</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="hide-mobile">{{ user.created_at|format_date }}</td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="{{ url_for('admin_user_details', user_id=user.id) }}" 
+                                                   class="btn btn-outline-info" title="View Details">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                {% if user.id != admin_user.id %}
+                                                <form method="POST" action="{{ url_for('admin_toggle_admin_status', user_id=user.id) }}" style="display: inline;">
+                                                    <button type="submit" 
+                                                            class="btn btn-outline-warning" 
+                                                            title="{% if user.is_admin %}Revoke Admin{% else %}Grant Admin{% endif %}"
+                                                            onclick="return confirm('{% if user.is_admin %}Revoke admin access for {{ user.email }}?{% else %}Grant admin access to {{ user.email }}?{% endif %}')">
+                                                        <i class="fas fa-{% if user.is_admin %}user-minus{% else %}user-plus{% endif %}"></i>
+                                                    </button>
+                                                </form>
+                                                <form method="POST" action="{{ url_for('admin_delete_user', user_id=user.id) }}" style="display: inline;">
+                                                    <button type="submit" 
+                                                            class="btn btn-outline-danger" 
+                                                            title="Delete User"
+                                                            onclick="return confirm('Are you sure you want to delete {{ user.email }}? This action cannot be undone.')">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </form>
+                                                {% else %}
+                                                <button class="btn btn-outline-secondary" disabled title="Cannot modify your own account">
+                                                    <i class="fas fa-lock"></i>
+                                                </button>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        {% if not users %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No users found</h5>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function refreshUsers() {
+    window.location.reload();
+}
+
+// Add some basic date formatting since we don't have moment.js
+document.addEventListener('DOMContentLoaded', function() {
+    // This is a simple replacement for moment.js functionality
+    const dateElements = document.querySelectorAll('[data-date]');
+    dateElements.forEach(element => {
+        const date = new Date(element.dataset.date);
+        element.textContent = date.toLocaleDateString();
+    });
+});
+</script>
+{% endblock %}
