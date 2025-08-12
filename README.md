@@ -3,7 +3,7 @@
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
 [![Flask](https://img.shields.io/badge/Flask-2.3.3-green.svg)](https://flask.palletsprojects.com/)
 [![AI](https://img.shields.io/badge/AI-Emotion%20Analysis-purple.svg)](#emotion-api)
-[![License](https://img.shields.io/badge/License-All%20Rights%20Reserved-red.svg)](#license)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](#license)
 
 A comprehensive web dashboard for **Project TEDDY** - an AI-powered therapeutic teddy bear that provides emotional support and comfort to people of all ages. This Flask-based web application serves as the central management platform for TEDDY devices, offering user authentication, device pairing, real-time monitoring, AI-powered emotion analysis, and configuration management.
 
@@ -61,14 +61,14 @@ A comprehensive web dashboard for **Project TEDDY** - an AI-powered therapeutic 
 - **Multi-modal Support**: Combines text, image, and audio analysis
 - **Confidence Scoring**: Provides confidence levels for emotion predictions
 
-### � **Administrative Features**
+### 👨‍💼 **Administrative Features**
 - **User Management**: View, edit, promote/demote, and delete users
 - **System Statistics**: Comprehensive analytics and usage metrics
 - **Device Monitoring**: Monitor all TEDDY devices across the platform
 - **Activity Logs**: Track user actions and system events
 - **Role-Based Permissions**: Secure admin-only access to management features
 
-### �🔌 **API Endpoints**
+### 🔌 **API Endpoints**
 - **Data Reception**: `/api/receive-data` - Receive telemetry from TEDDY devices
 - **Configuration Broadcast**: `/api/broadcast-teddy` - Send settings to devices
 - **Emotion Analysis**: `/api/emotion/*` - AI-powered emotion analysis endpoints
@@ -103,7 +103,7 @@ Before you begin, ensure you have the following installed:
 #### 1. **Clone the Repository**
 ```bash
 git clone https://github.com/BitMantis01/TeddyWebsiteFlaskPublic.git
-cd TeddyWebsiteFlask
+cd TeddyWebsiteFlaskPublic
 ```
 
 #### 2. **Set Up Virtual Environment** (Recommended)
@@ -623,17 +623,6 @@ curl -X POST \
 
 ### Running Tests
 
-#### Test the Emotion API
-```bash
-python test_emotion_api.py
-```
-
-This will test:
-- API health status
-- Text emotion analysis
-- Various emotion types
-- Error handling
-
 #### Test Basic Functionality
 ```bash
 # Test the application manually by:
@@ -1034,8 +1023,7 @@ We welcome contributions to improve Project TEDDY! Here's how you can help:
 
 4. **Make Changes and Test**
    ```bash
-   python test_emotion_api.py
-   python app.py  # Test manually
+   python app.py  # Test manually through web interface
    ```
 
 5. **Submit Pull Request**
@@ -1109,7 +1097,6 @@ For support, questions, or feature requests:
 
 1. **GitHub Issues:** [Create an issue](https://github.com/BitMantis01/TeddyWebsiteFlaskPublic/issues)
 2. **Documentation:** Check this README and inline code comments
-3. **Testing:** Run `python test_emotion_api.py` to verify setup
 4. **Community:** Join discussions in GitHub Discussions
 
 ## 🔄 Changelog
@@ -1202,7 +1189,7 @@ The following target user categories are supported:
 ## 📁 Project Structure
 
 ```
-TeddyWebsiteFlask/
+TeddyWebsiteFlaskPublic/
 ├── 📄 app.py                      # Main Flask application
 ├── ⚙️ config.json                 # Configuration file (excluded from git)
 ├── 📋 config.json.template        # Configuration template
@@ -1225,11 +1212,14 @@ TeddyWebsiteFlask/
 │   ├── register.html              # User registration page
 │   ├── complete_profile.html      # Profile completion
 │   ├── dashboard.html             # Main dashboard
-│   └── edit_profile.html          # Profile editing
-├── 📁 test/                       # Testing scripts
-│   ├── test_api.py                # Basic API testing
-│   └── test_api_advanced.py       # Comprehensive API tests
-└── 📁 temp/                       # Temporary files directory
+│   ├── edit_profile.html          # Profile editing
+│   ├── admin_dashboard.html       # Admin panel interface
+│   ├── admin_stats.html           # Admin statistics page
+│   ├── admin_user_details.html    # Admin user management
+│   └── emotion_analysis.html      # Emotion analysis interface
+├── 🧠 emotion_api.py              # Emotion analysis backend
+├── � requirements-emotion.txt    # ML dependencies for emotion analysis
+└── 🚫 .gitattributes             # Git attributes configuration
 ```
 
 ## 🔧 Development
@@ -1239,7 +1229,8 @@ TeddyWebsiteFlask/
 1. **Install development dependencies:**
    ```bash
    pip install -r requirements.txt
-   pip install pytest flask-testing  # For testing
+   # For emotion analysis features (optional):
+   pip install -r requirements-emotion.txt
    ```
 
 2. **Enable debug mode:**
@@ -1282,31 +1273,38 @@ TeddyWebsiteFlask/
 
 ## 🧪 Testing
 
-The project includes comprehensive testing scripts to ensure reliability and functionality.
+The project can be tested manually through the web interface and API endpoints.
 
-### **Available Test Scripts**
+### **Manual Testing**
 
-1. **Basic API Testing** (`test_api.py`)
-   - Continuous testing of API endpoints
-   - Multiple device simulation
-   - Real-time monitoring
-
-2. **Advanced API Testing** (`test_api_advanced.py`)
-   - Comprehensive test coverage
-   - Error condition testing
-   - Authentication validation
-
-### **Running Tests**
+Test the application by running it and using the web interface:
 
 ```bash
-# Basic continuous testing
-python test_api.py
+# Start the application
+python app.py
 
-# Advanced comprehensive testing
-python test_api_advanced.py
+# Test through web browser:
+# 1. Registration: http://localhost:5000/register
+# 2. Login: http://localhost:5000/login  
+# 3. Dashboard: http://localhost:5000/dashboard
+# 4. Emotion Analysis: http://localhost:5000/emotion-analysis
+# 5. Admin Panel: http://localhost:5000/admin (for admin users)
+```
 
-# Run with custom server URL
-python test_api_advanced.py http://your-server.com
+### **API Testing**
+
+You can test the API endpoints using curl or tools like Postman:
+
+```bash
+# Test API health
+curl -H "X-API-Key: your-api-key" http://localhost:5000/api/emotion/health
+
+# Test text emotion analysis
+curl -X POST \
+  http://localhost:5000/api/emotion/analyze/text \
+  -H "X-API-Key: your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{"text": "I am feeling great today!"}'
 ```
 
 ### **Test Coverage**
@@ -1535,15 +1533,27 @@ For new feature suggestions:
 
 ## 📄 License
 
-**© 2025 Project TEDDY Team - All Rights Reserved**
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-This project is proprietary software developed by the Project TEDDY research team. Unauthorized copying, modification, distribution, or use of this software is strictly prohibited.
+### MIT License
 
-### **Academic Use**
-This software is developed for academic research purposes. For educational or research use, please contact the research team for proper licensing.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-### **Commercial Use**
-Commercial use, reproduction, or distribution requires explicit written permission from the Project TEDDY team.
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
 ---
 
