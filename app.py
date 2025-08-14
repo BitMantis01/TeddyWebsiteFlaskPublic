@@ -9,6 +9,8 @@ import random
 import re
 from html import escape
 import requests
+import uuid
+import emotion_api
 
 app = Flask(__name__)
 
@@ -404,6 +406,22 @@ def init_db():
         )
     ''')
     
+    # Emotion analysis results table for ESP32 data
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS emotion_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            teddy_code TEXT NOT NULL,
+            emotion TEXT NOT NULL,
+            confidence REAL,
+            data_type TEXT NOT NULL,
+            transcript TEXT,
+            matches TEXT,
+            all_candidates TEXT,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (teddy_code) REFERENCES teddy_devices (teddy_code)
+        )
+    ''')
+    
     conn.commit()
     conn.close()
 
@@ -416,8 +434,8 @@ def create_admin_user():
     
     if admin_count == 0:
         # Create default admin user
-        admin_email = 'admin@teddy.local'
-        admin_password = '@T3ddy12RDL'  # Change this immediately after first login
+        admin_email = 'admin@teddy.com'
+        admin_password = '@Test123#'  # Change this immediately after first login
         
         # Check if this email already exists
         existing_user = conn.execute('SELECT id FROM users WHERE email = ?', (admin_email,)).fetchone()
@@ -1275,7 +1293,206 @@ def admin_unpair_device(teddy_code):
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
+# Emotion Analysis API Endpoints
+@app.route('/api/emotion/text', methods=['POST'])
+def api_emotion_text():
+    try:
+        data = request.get_json()
+        if not data or 'text' not in data:
+            return jsonify({"error": "Missing text in request"}), 400
+        
+        result = emotion_api.analyze_text_emotion(data['text'])
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/emotion/audio', methods=['POST'])
+def api_emotion_audio():
+    try:
+        if 'audio' not in request.files:
+            return jsonify({"error": "No audio file provided"}), 400
+        
+        audio_file = request.files['audio']
+        
+        # Save temporarily
+        temp_path = f"temp_audio_{uuid.uuid4().hex[:8]}.mp3"
+        audio_file.save(temp_path)
+        
+        try:
+            result = emotion_api.analyze_audio_file(temp_path)
+            return jsonify(result)
+        finally:
+            # Clean up temp file
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+                
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/emotion/image', methods=['POST'])
+def api_emotion_image():
+    try:
+        if 'image' not in request.files:
+            return jsonify({"error": "No image file provided"}), 400
+        
+        image_file = request.files['image']
+        
+        # Save temporarily
+        temp_path = f"temp_image_{uuid.uuid4().hex[:8]}.jpg"
+        image_file.save(temp_path)
+        
+        try:
+            result = emotion_api.analyze_image_file(temp_path)
+            return jsonify(result)
+        finally:
+            # Clean up temp file
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+                
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ESP32-specific endpoints for raw binary data
+@app.route('/api/esp32/analyze/image', methods=['POST'])
+def api_esp32_image():
+    """ESP32 endpoint for raw JPEG image analysis with database storage"""
+    try:
+        # Get TEDDY code from headers or form data
+        teddy_code = request.headers.get('X-TEDDY-Code') or request.args.get('teddy_code')
+        if not teddy_code:
+            return jsonify({"error": "Missing TEDDY code in headers (X-TEDDY-Code) or query params"}), 400
+        
+        # Validate TEDDY code exists in database
+        conn = sqlite3.connect(config['database_path'])
+        cursor = conn.cursor()
+        cursor.execute('SELECT teddy_code FROM teddy_devices WHERE teddy_code = ?', (teddy_code,))
+        if not cursor.fetchone():
+            conn.close()
+            return jsonify({"error": "Invalid TEDDY code"}), 400
+        conn.close()
+        
+        # Get raw JPEG data
+        if request.content_type == 'image/jpeg':
+            # Raw JPEG bytes in request body
+            jpeg_data = request.get_data()
+        elif 'image' in request.files:
+            # File upload
+            jpeg_data = request.files['image'].read()
+        else:
+            return jsonify({"error": "No image data provided. Send raw JPEG as body with content-type image/jpeg or as file upload"}), 400
+        
+        if not jpeg_data:
+            return jsonify({"error": "Empty image data"}), 400
+        
+        # Save temporarily for processing
+        temp_path = f"temp_esp32_image_{uuid.uuid4().hex[:8]}.jpg"
+        
+        try:
+            with open(temp_path, 'wb') as f:
+                f.write(jpeg_data)
+            
+            # Analyze the image
+            result = emotion_api.analyze_image_file(temp_path)
+            
+            # Store result in database
+            if emotion_api.store_emotion_result(teddy_code, result, 'image'):
+                result['stored'] = True
+                result['teddy_code'] = teddy_code
+            else:
+                result['stored'] = False
+                result['warning'] = 'Analysis completed but failed to store in database'
+            
+            return jsonify(result)
+            
+        finally:
+            # Clean up temp file
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+                
+    except Exception as e:
+        print(f"ESP32 image analysis error: {e}")
+        return jsonify({"error": str(e), "teddy_code": teddy_code if 'teddy_code' in locals() else "unknown"}), 500
+
+@app.route('/api/esp32/analyze/audio', methods=['POST'])
+def api_esp32_audio():
+    """ESP32 endpoint for WAV audio analysis with database storage"""
+    try:
+        # Get TEDDY code from headers or form data
+        teddy_code = request.headers.get('X-TEDDY-Code') or request.form.get('teddy_code') or request.args.get('teddy_code')
+        if not teddy_code:
+            return jsonify({"error": "Missing TEDDY code in headers (X-TEDDY-Code), form data, or query params"}), 400
+        
+        # Validate TEDDY code exists in database
+        conn = sqlite3.connect(config['database_path'])
+        cursor = conn.cursor()
+        cursor.execute('SELECT teddy_code FROM teddy_devices WHERE teddy_code = ?', (teddy_code,))
+        if not cursor.fetchone():
+            conn.close()
+            return jsonify({"error": "Invalid TEDDY code"}), 400
+        conn.close()
+        
+        # Get WAV audio data
+        if 'audio' in request.files:
+            # Multipart form data upload
+            audio_file = request.files['audio']
+            audio_data = audio_file.read()
+        elif request.content_type == 'audio/wav':
+            # Raw WAV bytes in request body
+            audio_data = request.get_data()
+        else:
+            return jsonify({"error": "No audio data provided. Send as multipart form-data or raw WAV with content-type audio/wav"}), 400
+        
+        if not audio_data:
+            return jsonify({"error": "Empty audio data"}), 400
+        
+        # Save temporarily for processing
+        temp_path = f"temp_esp32_audio_{uuid.uuid4().hex[:8]}.wav"
+        
+        try:
+            with open(temp_path, 'wb') as f:
+                f.write(audio_data)
+            
+            # Analyze the audio
+            result = emotion_api.analyze_audio_file(temp_path)
+            
+            # Store result in database
+            if emotion_api.store_emotion_result(teddy_code, result, 'audio'):
+                result['stored'] = True
+                result['teddy_code'] = teddy_code
+            else:
+                result['stored'] = False
+                result['warning'] = 'Analysis completed but failed to store in database'
+            
+            return jsonify(result)
+            
+        finally:
+            # Clean up temp file
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+                
+    except Exception as e:
+        print(f"ESP32 audio analysis error: {e}")
+        return jsonify({"error": str(e), "teddy_code": teddy_code if 'teddy_code' in locals() else "unknown"}), 500
+
+@app.route('/api/esp32/emotion/latest/<teddy_code>', methods=['GET'])
+def api_esp32_latest_emotion(teddy_code):
+    """Get the latest emotion analysis result for a TEDDY device"""
+    try:
+        result = emotion_api.get_latest_emotion(teddy_code)
+        return jsonify(result)
+    except Exception as e:
+        print(f"Error getting latest emotion for {teddy_code}: {e}")
+        return jsonify({"error": str(e), "teddy_code": teddy_code}), 500
+
+@app.route('/api/emotion/health', methods=['GET'])
+def api_emotion_health():
+    try:
+        result = emotion_api.health_check()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     init_db()
     create_admin_user()
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=2614)
